@@ -1,0 +1,58 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  cuby-app
+
+  Sample Cuby-app to shutdown my A/C Daily at 8:00AM UTC (3AM CDT)
+
+Globals:
+  Function:
+    Timeout: 3
+
+Resources:
+  CubyShutDownFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: cuby-app/
+      Handler: app.lambda_handler
+      Runtime: python3.6
+      Role: !GetAtt ParameterStoreFunctionRole.Arn
+      Events:
+        CubyScheduledShutdownEvent:
+          Type: Schedule
+          Properties:
+            Schedule: cron(00 08 * * ? *)
+            
+  ParameterStoreFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - 'lambda.amazonaws.com'
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+        -
+          PolicyName: 'ParameterStoreAccess'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              -
+                Effect: Allow
+                Action:
+                  - 'ssm:GetParameter*'
+                Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/cuby*'
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  CubyShutDownFunction:
+    Description: "Cuby Function Function ARN"
+    Value: !GetAtt CubyShutDownFunction.Arn
